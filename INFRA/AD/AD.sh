@@ -8,7 +8,7 @@ repo_urls=(
 )
 
 # Cartella di destinazione per il download dei repository
-destination_folder="cartella_dei_repository"
+destination_folder="download"
 
 # Creazione della cartella di destinazione se non esiste
 mkdir -p "$destination_folder"
