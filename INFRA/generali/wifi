@@ -1,0 +1,9 @@
+INIZIO:
+sudo airmon-ng check rfkill
+sudo airmon-ng check kill PID
+sudo airmon-ng start wlan0
+iwconfig --> wlan0mon
+sudo airodump-ng wlan0mon
+
+FINE:
+sudo service NetworkManager start

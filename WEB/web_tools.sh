@@ -6,6 +6,7 @@ repo_urls=(
     "https://github.com/EnableSecurity/wafw00f.git"
     "https://github.com/m4ll0k/SecretFinder.git"
     "https://github.com/maurosoria/dirsearch.git"
+    "https://github.com/anshumanpattnaik/http-request-smuggling.git"
 )
 
 # Cartella di destinazione per il download dei repository
