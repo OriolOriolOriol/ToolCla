@@ -2,12 +2,9 @@
 
 # Elenco degli URL dei repository da scaricare
 repo_urls=(
-    "https://github.com/sqlmapproject/sqlmap.git"
-    "https://github.com/EnableSecurity/wafw00f.git"
-    "https://github.com/m4ll0k/SecretFinder.git"
-    "https://github.com/maurosoria/dirsearch.git"
-    "https://github.com/anshumanpattnaik/http-request-smuggling.git"
-    "https://github.com/epi052/feroxbuster.git"
+    "https://github.com/D3Ext/AORT.git"
+    "https://github.com/FluxionNetwork/fluxion.git"
+    "https://github.com/urbanadventurer/username-anarchy.git"
 )
 
 # Cartella di destinazione per il download dei repository

