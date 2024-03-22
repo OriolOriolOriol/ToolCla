@@ -184,6 +184,8 @@ BASIC:
     
     Useful SW installed:
     > which nmap aws nc ncat netcat nc.traditional wget curl ping gcc g++ make gdb base64 socat python python2 python3 python2.7 python2.6 python3.6 python3.7 perl php ruby xterm doas sudo fetch docker lxc ctr runc rkt kubectl 2>/dev/null
+   
+
 
 CRON:
     > crontab -l
@@ -237,6 +239,11 @@ Basic Commands
 Verificare App Installate
 > reg query "HKLM\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" /s | find "DisplayName"
 > reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" /s 
+
+
+Cercare stringhe particolari in particolari estensioni dentro cmd
+> for /r "C:\Users" %f in (*.txt *.ini) do @(find /i "alex" "%f" >nul && echo %f contiene la stringa "alex")
+> dir C:\*.txt C:\*.ini /s /b > file.txt 2>nul
 
 Ottenere path particolare processo
 PS> $process = Get-Process -Id 79
