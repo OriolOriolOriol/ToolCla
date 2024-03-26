@@ -4,12 +4,12 @@
 repo_urls=(
     "https://github.com/dirkjanm/krbrelayx.git"
     "https://github.com/fortra/impacket.git"
-    "https://github.com/ly4k/Certipy.git"
+    "https://github.com/sploutchy/Certipy.git"
     "https://github.com/dirkjanm/BloodHound.py.git"
     "https://github.com/dirkjanm/mitm6.git"
     "https://github.com/topotam/PetitPotam.git"
     "https://github.com/carlospolop/PEASS-ng.git" 
-    "https://github.com/CravateRouge/autobloody.git"  
+    "https://github.com/CravateRouge/bloodyAD.git"  
 )
 
 # Cartella di destinazione per il download dei repository
