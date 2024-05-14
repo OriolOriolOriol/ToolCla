@@ -9,7 +9,8 @@ repo_urls=(
     "https://github.com/dirkjanm/mitm6.git"
     "https://github.com/topotam/PetitPotam.git"
     "https://github.com/carlospolop/PEASS-ng.git" 
-    "https://github.com/CravateRouge/bloodyAD.git"  
+    "https://github.com/CravateRouge/bloodyAD.git"
+    "https://github.com/dirkjanm/PKINITtools.git"  
 )
 
 # Cartella di destinazione per il download dei repository

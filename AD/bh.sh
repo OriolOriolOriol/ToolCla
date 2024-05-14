@@ -24,7 +24,7 @@ read -p "+ Premi Invio per continuare quando neo4j is UP... +"
 gnome-terminal --title="BloodHound" -- bloodhound
 
 
-
 echo 
-echo "cd /home/attacker/Desktop/BloodHound/BloodHound.py; ./bloodhound.py -c All -u \"$user\" -p \"$pass\" -d \"$domain\" -ns \"$dcIp\""
+echo "cd /home/attacker/Desktop/BloodHound/BloodHound.py; ./bloodhound.py -c All -u \"$user\" -p \"$pass\" -d \"$domain\" -ns \"$dcIp\"";
+echo "cd /home/attacker/Desktop/BloodHound/BloodHound.py;cp *.json /home/attacker/Desktop/BloodHound/result"
 
